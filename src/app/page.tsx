@@ -1,103 +1,238 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
+
+// ScratchCard Component
+const ScratchCard: React.FC<{ discount: number }> = ({ discount }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [scratched, setScratched] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    // Set canvas size
+    canvas.width = 320;
+    canvas.height = 192;
+
+    // Fill overlay
+    ctx.fillStyle = "#999";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw tiled watermark
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.font = "20px Arial";
+    const patternText = "ZORODOOR ";
+    const textWidth = ctx.measureText(patternText).width;
+
+    for (let y = 20; y < canvas.height; y += 40) {
+      for (let x = 0; x < canvas.width; x += textWidth) {
+        ctx.fillText(patternText, x, y);
+      }
+    }
+
+    let isDrawing = false;
+
+    const handleStart = (e: MouseEvent | TouchEvent) => {
+      isDrawing = true;
+      scratch(e);
+    };
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDrawing) return;
+      scratch(e);
+    };
+
+    const handleEnd = () => {
+      isDrawing = false;
+      checkScratched();
+    };
+
+    const scratch = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      let x: number, y: number;
+
+      if ("touches" in e) {
+        x = e.touches[0].clientX - rect.left;
+        y = e.touches[0].clientY - rect.top;
+      } else {
+        x = (e as MouseEvent).clientX - rect.left;
+        y = (e as MouseEvent).clientY - rect.top;
+      }
+
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    const checkScratched = () => {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let transparentPixels = 0;
+      for (let i = 3; i < imageData.data.length; i += 4) {
+        if (imageData.data[i] < 128) transparentPixels++;
+      }
+      const scratchedPercent = (transparentPixels / (canvas.width * canvas.height)) * 100;
+      if (scratchedPercent > 40) setScratched(true);
+    };
+
+    canvas.addEventListener("mousedown", handleStart);
+    canvas.addEventListener("mousemove", handleMove);
+    canvas.addEventListener("mouseup", handleEnd);
+    canvas.addEventListener("mouseleave", handleEnd);
+
+    canvas.addEventListener("touchstart", handleStart);
+    canvas.addEventListener("touchmove", handleMove);
+    canvas.addEventListener("touchend", handleEnd);
+
+    return () => {
+      canvas.removeEventListener("mousedown", handleStart);
+      canvas.removeEventListener("mousemove", handleMove);
+      canvas.removeEventListener("mouseup", handleEnd);
+      canvas.removeEventListener("mouseleave", handleEnd);
+
+      canvas.removeEventListener("touchstart", handleStart);
+      canvas.removeEventListener("touchmove", handleMove);
+      canvas.removeEventListener("touchend", handleEnd);
+    };
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="w-80 h-48 relative rounded-lg shadow-lg overflow-hidden flex items-center justify-center">
+      {/* Hidden Discount */}
+      {scratched && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-2xl font-bold text-black bg-gradient-to-br from-yellow-300 to-orange-500">
+          <span>🎉 You won! 🎉</span>
+          <span>{discount}% OFF</span>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+      {/* Canvas Overlay */}
+      {!scratched && <canvas ref={canvasRef} className="absolute inset-0" />}
+    </div>
+  );
+};
+
+// Landing Page
+export default function LandingPage() {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [showScratchCard, setShowScratchCard] = useState(false);
+  const [formData, setFormData] = useState({ name: "", number: "", email: "" });
+  const [discount, setDiscount] = useState<number | null>(null);
+
+  // Animate title & button
+  useEffect(() => {
+    if (titleRef.current) {
+      gsap.from(titleRef.current, {
+        y: -50,
+        opacity: 0,
+        scale: 0.8,
+        duration: 1,
+        ease: "power3.out",
+      });
+    }
+  }, []);
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+  
+      if (!res.ok) throw new Error("Failed to save user data");
+  
+      const randomDiscount = Math.floor(Math.random() * (75 - 5 + 1)) + 5;
+      setDiscount(randomDiscount);
+      setShowForm(false);
+      setShowScratchCard(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  
+
+  return (
+    <div className="relative flex flex-col items-center justify-center min-h-screen px-4 overflow-hidden bg-black text-white">
+      {/* Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] 
+                      bg-[size:40px_40px] opacity-10 pointer-events-none"></div>
+
+      {/* Title */}
+      <h1
+        ref={titleRef}
+        className="relative z-10 text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-wide mb-12 text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]"
+      >
+        ZORODOOR
+      </h1>
+
+      <div className="relative z-10">
+        {/* Get Discount Button */}
+        {!showForm && !showScratchCard && (
+          <button
+            ref={buttonRef}
+            className="px-10 py-4 text-xl font-bold bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 transition-colors"
+            onClick={() => setShowForm(true)}
+          >
+            Get Discount
+          </button>
+        )}
+
+       {/* Form */}
+{showForm && (
+  <form
+    onSubmit={handleFormSubmit}
+    className="flex flex-col gap-4 bg-white text-black p-6 rounded-lg shadow-lg w-80"
+  >
+    <input
+      type="text"
+      placeholder="Name"
+      value={formData.name}
+      required
+      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+    />
+
+    <input
+      type="tel"
+      placeholder="Phone Number"
+      value={formData.number}
+      required
+      pattern="[0-9]{10}"
+      onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+    />
+
+    <input
+      type="email"
+      placeholder="Email"
+      value={formData.email}
+      required
+      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+    />
+
+    <button
+      type="submit"
+      className="px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all"
+    >
+      Submit
+    </button>
+  </form>
+)}
+
+
+        {/* Scratch Card */}
+        {showScratchCard && discount !== null && <ScratchCard discount={discount} />}
+      </div>
     </div>
   );
 }
