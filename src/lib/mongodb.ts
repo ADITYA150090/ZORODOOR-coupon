@@ -6,13 +6,11 @@ if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
 }
 
-// Define cached connection type
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
-// Use global cache to prevent multiple connections during hot reloads
 const globalWithMongoose = globalThis as typeof globalThis & {
   mongoose: MongooseCache;
 };
