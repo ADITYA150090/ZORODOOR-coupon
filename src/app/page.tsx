@@ -13,7 +13,6 @@ const ScratchCard: React.FC<{ discount: number }> = ({ discount }) => {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    // Set canvas size
     canvas.width = 320;
     canvas.height = 192;
 
@@ -34,21 +33,6 @@ const ScratchCard: React.FC<{ discount: number }> = ({ discount }) => {
     }
 
     let isDrawing = false;
-
-    const handleStart = (e: MouseEvent | TouchEvent) => {
-      isDrawing = true;
-      scratch(e);
-    };
-
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDrawing) return;
-      scratch(e);
-    };
-
-    const handleEnd = () => {
-      isDrawing = false;
-      checkScratched();
-    };
 
     const scratch = (e: MouseEvent | TouchEvent) => {
       e.preventDefault();
@@ -75,15 +59,31 @@ const ScratchCard: React.FC<{ discount: number }> = ({ discount }) => {
       for (let i = 3; i < imageData.data.length; i += 4) {
         if (imageData.data[i] < 128) transparentPixels++;
       }
-      const scratchedPercent = (transparentPixels / (canvas.width * canvas.height)) * 100;
+      const scratchedPercent =
+        (transparentPixels / (canvas.width * canvas.height)) * 100;
       if (scratchedPercent > 40) setScratched(true);
     };
 
+    const handleStart = (e: MouseEvent | TouchEvent) => {
+      isDrawing = true;
+      scratch(e);
+    };
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDrawing) return;
+      scratch(e);
+    };
+
+    const handleEnd = () => {
+      isDrawing = false;
+      checkScratched();
+    };
+
+    // Event Listeners
     canvas.addEventListener("mousedown", handleStart);
     canvas.addEventListener("mousemove", handleMove);
     canvas.addEventListener("mouseup", handleEnd);
     canvas.addEventListener("mouseleave", handleEnd);
-
     canvas.addEventListener("touchstart", handleStart);
     canvas.addEventListener("touchmove", handleMove);
     canvas.addEventListener("touchend", handleEnd);
@@ -93,7 +93,6 @@ const ScratchCard: React.FC<{ discount: number }> = ({ discount }) => {
       canvas.removeEventListener("mousemove", handleMove);
       canvas.removeEventListener("mouseup", handleEnd);
       canvas.removeEventListener("mouseleave", handleEnd);
-
       canvas.removeEventListener("touchstart", handleStart);
       canvas.removeEventListener("touchmove", handleMove);
       canvas.removeEventListener("touchend", handleEnd);
@@ -124,6 +123,7 @@ export default function LandingPage() {
   const [showScratchCard, setShowScratchCard] = useState(false);
   const [formData, setFormData] = useState({ name: "", number: "", email: "" });
   const [discount, setDiscount] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // ✅ Added loader state
 
   // Animate title & button
   useEffect(() => {
@@ -140,25 +140,28 @@ export default function LandingPage() {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+    setIsLoading(true);
+
     try {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-  
+
       if (!res.ok) throw new Error("Failed to save user data");
-  
+
       const randomDiscount = Math.floor(Math.random() * (75 - 5 + 1)) + 5;
       setDiscount(randomDiscount);
       setShowForm(false);
       setShowScratchCard(true);
     } catch (error) {
       console.error(error);
+      alert("Something went wrong. Please try again!");
+    } finally {
+      setIsLoading(false);
     }
   };
-  
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen px-4 overflow-hidden bg-black text-white">
@@ -186,52 +189,89 @@ export default function LandingPage() {
           </button>
         )}
 
-       {/* Form */}
-{showForm && (
-  <form
-    onSubmit={handleFormSubmit}
-    className="flex flex-col gap-4 bg-white text-black p-6 rounded-lg shadow-lg w-80"
-  >
-    <input
-      type="text"
-      placeholder="Name"
-      value={formData.name}
-      required
-      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
-    />
+        {/* Form */}
+        {showForm && (
+          <form
+            onSubmit={handleFormSubmit}
+            className="flex flex-col gap-4 bg-white text-black p-6 rounded-lg shadow-lg w-80"
+          >
+            <input
+              type="text"
+              placeholder="Name"
+              value={formData.name}
+              required
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+            />
 
-    <input
-      type="tel"
-      placeholder="Phone Number"
-      value={formData.number}
-      required
-      pattern="[0-9]{10}"
-      onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
-    />
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={formData.number}
+              required
+              pattern="[0-9]{10}"
+              onChange={(e) =>
+                setFormData({ ...formData, number: e.target.value })
+              }
+              className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+            />
 
-    <input
-      type="email"
-      placeholder="Email"
-      value={formData.email}
-      required
-      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-      className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
-    />
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              required
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="p-2 border rounded focus:ring-2 focus:ring-red-400 outline-none"
+            />
 
-    <button
-      type="submit"
-      className="px-4 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition-all"
-    >
-      Submit
-    </button>
-  </form>
-)}
-
+            {/* Submit Button with Loader */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`px-4 py-2 bg-red-600 text-white font-bold rounded transition-all ${
+                isLoading ? "opacity-70 cursor-not-allowed" : "hover:bg-red-700"
+              }`}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    ></path>
+                  </svg>
+                  Saving...
+                </div>
+              ) : (
+                "Submit"
+              )}
+            </button>
+          </form>
+        )}
 
         {/* Scratch Card */}
-        {showScratchCard && discount !== null && <ScratchCard discount={discount} />}
+        {showScratchCard && discount !== null && (
+          <ScratchCard discount={discount} />
+        )}
       </div>
     </div>
   );
